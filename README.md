@@ -15,6 +15,10 @@ Operator-grade GPU monitor for NVIDIA GPUs with GB10 / DGX Spark–aware unified
 - ConnectX-7 network layer — TX/RX throughput, link state, error detection
 - Clean exit on Ctrl+C
 
+> **Note:** This tool is not fully validated on GB10 / DGX Spark hardware. If you run it on Spark, please open an issue with your results.
+>
+> Community discussion and field results: https://forums.developer.nvidia.com/t/sparkview-gpu-monitor-tool-with-gb10-aware-unified-memory-handling/366877
+
 ## ConnectX-7 / DGX Spark Cluster
 
 On GB10 systems, sparkview detects ConnectX-7 (mlx5) interfaces at runtime and displays live TX/RX throughput per interface. Hidden on non-GB10 systems.
@@ -69,7 +73,6 @@ sparkview detects this condition at runtime and uses `MemAvailable` for display 
 
 The PSI memory pressure signal (`/proc/pressure/memory`) provides visibility into memory contention before swap or system freeze.
 
-Requires validation on GB10 / DGX Spark hardware. If you run this on Spark, please open an issue with your results.
 
 ## Clock States
 
