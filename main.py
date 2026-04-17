@@ -53,7 +53,7 @@ def sep(grid: Table) -> None:
     grid.add_row(Text(""))
 
 
-def build() -> Table:
+def build(term_height: int = 40) -> Table:
     gpus = get_gpu_info()
     mem = get_memory()
     cpu = get_cpu_info()
@@ -187,7 +187,7 @@ def build() -> Table:
         [p for g in gpus for p in g.get("processes", [])],
         key=lambda x: x["gpu_mem"] or 0,
         reverse=True,
-    )[:8]
+    )[:max(3, term_height - 20)]
 
     if procs:
         t = Text()
@@ -212,7 +212,7 @@ def main() -> None:
     try:
         with Live(console=console, refresh_per_second=1, screen=True) as live:
             while True:
-                live.update(build())
+                live.update(build(console.size.height))
                 time.sleep(REFRESH)
     except KeyboardInterrupt:
         console.print("\n[green]sparkview exited.[/green]")
