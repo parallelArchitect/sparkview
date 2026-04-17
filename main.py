@@ -187,7 +187,7 @@ def build(term_height: int = 40) -> Table:
         [p for g in gpus for p in g.get("processes", [])],
         key=lambda x: x["gpu_mem"] or 0,
         reverse=True,
-    )[:max(3, term_height - 20)]
+    )[: max(3, term_height - 20)]
 
     if procs:
         t = Text()
