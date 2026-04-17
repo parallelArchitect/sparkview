@@ -40,7 +40,7 @@ cd sparkview
 python3 -m venv sparkview-venv
 
 # activate it
-source sparkview-venv/bin/activate
+source ~/sparkview/sparkview-venv/bin/activate
 
 # install dependencies
 pip install nvitop psutil rich textual
