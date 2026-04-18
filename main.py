@@ -13,6 +13,8 @@ from rich.text import Text
 
 from sparkview.layers.cpu import get_cpu_info
 from sparkview.layers.gpu import get_gpu_info
+from sparkview.layers.info import get_info
+from sparkview.layers.logger import should_log, stop_log, write_log
 from sparkview.layers.memory import get_memory
 from sparkview.layers.network import get_net_info
 from sparkview.layers.power import get_power_info
@@ -53,6 +55,11 @@ def sep(grid: Table) -> None:
     grid.add_row(Text(""))
 
 
+_last = {}
+_peak_gpu_temp = 0.0
+_peak_cpu_temp = 0.0
+
+
 def build(term_height: int = 40) -> Table:
     gpus = get_gpu_info()
     mem = get_memory()
@@ -61,6 +68,10 @@ def build(term_height: int = 40) -> Table:
     psi = get_pressure()
     net = get_net_info()
     throttle = get_throttle_info(gpus)
+    info = get_info()
+    _last.update(
+        {"gpus": gpus, "mem": mem, "cpu": cpu, "psi": psi, "throttle": throttle, "info": info}
+    )
     is_uma = any(g["is_uma"] for g in gpus)
 
     grid = Table.grid(padding=(0, 1))
@@ -77,7 +88,13 @@ def build(term_height: int = 40) -> Table:
         t.append(f"{util:3d}%")
         t.append(f"  {temp}  {pw}  Mem {gi(g['mem_used'])}/{gi(g['mem_total'])}")
         if g["is_uma"]:
-            t.append("  ⚡UMA", style="yellow bold")
+            uma_alert = (
+                psi.get("level") in ("HIGH", "CRITICAL")
+                or any(th.get("status") == "THROTTLED" for th in throttle)
+                or any(g.get("temperature", 0) > 80 for g in gpus)
+            )
+            uma_style = "bold red" if uma_alert else "yellow bold"
+            t.append("  ⚡UMA", style=uma_style)
         grid.add_row(t)
     sep(grid)
 
@@ -127,7 +144,7 @@ def build(term_height: int = 40) -> Table:
         t = Text()
         t.append("CLOCK  ", style="bold cyan")
         t.append(f"{bar_str} ", style=color)
-        t.append(f"{status:10s}", style=color + " bold")
+        t.append(f"{status:8s}", style=color + " bold")
         t.append(f"  {clk:.0f}MHz / {clk_max:.0f}MHz  {th['pstate']}{reason_str}")
         grid.add_row(t)
     sep(grid)
@@ -143,6 +160,29 @@ def build(term_height: int = 40) -> Table:
         t.append(f"{bar(score)} ", style=color)
         t.append(f"{level:8s}", style=color + " bold")
         t.append(f"  some {psi['some_avg10']:.2f}  full {psi['full_avg10']:.2f}")
+        grid.add_row(t)
+        sep(grid)
+
+    # ── TEMP ────────────────────────────────────────
+    global _peak_gpu_temp, _peak_cpu_temp
+    gpu_temp = max((g["temperature"] for g in gpus if g.get("temperature")), default=None)
+    cpu_temp = cpu.get("temperature")
+    if gpu_temp is not None:
+        _peak_gpu_temp = max(_peak_gpu_temp, gpu_temp)
+    if cpu_temp is not None:
+        _peak_cpu_temp = max(_peak_cpu_temp, cpu_temp)
+    if gpu_temp is not None or cpu_temp is not None:
+        peak_val = max(v for v in [gpu_temp, cpu_temp] if v is not None)
+        temp_color = "green" if peak_val < 60 else "yellow" if peak_val < 80 else "bold red"
+        t = Text()
+        t.append("TEMP   ", style="bold cyan")
+        t.append(f"{bar(peak_val, w=20)} ", style=temp_color)
+        parts = []
+        if gpu_temp is not None:
+            parts.append(f"GPU {gpu_temp:.0f}°C↑{_peak_gpu_temp:.0f}°C")
+        if cpu_temp is not None:
+            parts.append(f"CPU {cpu_temp:.0f}°C↑{_peak_cpu_temp:.0f}°C")
+        t.append("  ".join(parts), style=temp_color)
         grid.add_row(t)
         sep(grid)
 
@@ -182,6 +222,24 @@ def build(term_height: int = 40) -> Table:
         grid.add_row(t)
         sep(grid)
 
+    # ── INFO ─────────────────────────────────────────────
+    t = Text()
+    t.append("INFO   ", style="bold cyan")
+    parts = []
+    if info["time"]:
+        parts.append(info["time"])
+    if info["driver"]:
+        parts.append(f"Driver {info['driver']}")
+    if info["cuda"]:
+        parts.append(f"CUDA {info['cuda']}")
+    if info["kernel"]:
+        parts.append(f"Kernel {info['kernel']}")
+    if info["uptime"]:
+        parts.append(f"Up {info['uptime']}")
+    t.append("  |  ".join(parts), style="dim")
+    grid.add_row(t)
+
+    grid.add_row(Text("─" * 60, style="dim"))
     # ── PROCESSES ────────────────────────────────────
     procs = sorted(
         [p for g in gpus for p in g.get("processes", [])],
@@ -212,9 +270,26 @@ def main() -> None:
     try:
         with Live(console=console, refresh_per_second=1, screen=True) as live:
             while True:
-                live.update(build(console.size.height))
+                data = build(console.size.height)
+                live.update(data)
+                if _last and should_log(
+                    _last["psi"], _last["throttle"], _last["mem"], _last["gpus"], _last["cpu"]
+                ):
+                    write_log(
+                        _last["info"],
+                        _last["gpus"],
+                        _last["mem"],
+                        _last["cpu"],
+                        _last["psi"],
+                        _last["throttle"],
+                        peak_gpu_temp=_peak_gpu_temp,
+                        peak_cpu_temp=_peak_cpu_temp,
+                    )
                 time.sleep(REFRESH)
     except KeyboardInterrupt:
+        path = stop_log()
+        if path:
+            console.print(f"\n[yellow]anomaly log saved to {path}[/yellow]")
         console.print("\n[green]sparkview exited.[/green]")
         sys.exit(0)
 

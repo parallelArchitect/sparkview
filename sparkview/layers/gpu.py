@@ -21,7 +21,7 @@ def is_coherent_uma(device: "Device") -> bool:
         vm = psutil.virtual_memory()
         if mem.total is None or vm.total == 0:
             return False
-        return mem.total >= vm.total * UMA_THRESHOLD
+        return vm.total * UMA_THRESHOLD <= mem.total <= vm.total * 1.1
     except Exception:  # noqa: BLE001
         return False
 
@@ -59,8 +59,8 @@ def get_gpu_info() -> list[dict]:
                     "temperature": device.temperature(),
                     "power": device.power_usage(),
                     "is_uma": uma,
-                    "mem_total": vm.available if uma else mem.total,
-                    "mem_used": mem.used,
+                    "mem_total": vm.total if uma else mem.total,
+                    "mem_used": (vm.total - vm.available) if uma else mem.used,
                     "processes": sorted(procs, key=lambda x: x["gpu_mem"] or 0, reverse=True),
                 }
             )

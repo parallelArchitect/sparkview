@@ -6,33 +6,20 @@ Operator-grade GPU monitor for NVIDIA GPUs with GB10 / DGX Spark–aware unified
 
 - GPU utilization, temperature, power, memory — via NVML
 - Runtime detection of coherent UMA (GB10 / DGX Spark)
-- Memory display uses `MemAvailable` instead of `MemTotal` on UMA systems
+- Memory display uses `vm.total - vm.available` for accurate UMA reporting
 - Memory pressure (PSI) — LOW / MOD / HIGH / CRITICAL from `/proc/pressure/memory`
 - Load-gated clock states — IDLE / PASS / LOCKED / THROTTLED
 - CPU utilization and active core count
 - SWAP monitoring
-- Process list sorted by GPU memory usage
-- ConnectX-7 network layer — TX/RX throughput, link state, error detection
+- TEMP row — current and session peak for GPU and CPU, color-coded green/yellow/red
+- INFO row — time, driver version, CUDA version, kernel, uptime
+- Process list sorted by GPU memory usage, scales to terminal height
+- Anomaly auto-logger — automatically logs to `~/sparkview_logs/` when issues are detected
 - Clean exit on Ctrl+C
 
 > **Note:** This tool is not fully validated on GB10 / DGX Spark hardware. If you run it on Spark, please open an issue with your results.
 >
 > Community discussion and field results: https://forums.developer.nvidia.com/t/sparkview-gpu-monitor-tool-with-gb10-aware-unified-memory-handling/366877
-
-## ConnectX-7 / DGX Spark Cluster
-
-On GB10 systems, sparkview detects ConnectX-7 (mlx5) interfaces at runtime and displays live TX/RX throughput per interface. Hidden on non-GB10 systems.
-
-Interface naming follows NVIDIA dual-Spark topology:
-
-```
-enp1s0f0np0
-enp1s0f1np1
-enP2p1s0f0np0
-enP2p1s0f1np1
-```
-
-Degraded link behavior (e.g. ~13 Gb/s instead of ~200 Gb/s) is inferred from sustained TX/RX throughput via sysfs statistics. No `ethtool` dependency.
 
 ## Install
 
@@ -65,14 +52,27 @@ source ~/.bashrc
 
 Then just type `sparkview` from terminal to launch.
 
+## Anomaly Logging
+
+sparkview automatically starts logging when any of these conditions are detected:
+
+- PSI memory pressure reaches MOD, HIGH, or CRITICAL
+- GPU clock drops to THROTTLED or LOCKED under load
+- Memory > 85% with swap active
+- GPU or CPU temperature exceeds 80°C
+
+Logs are saved to `~/sparkview_logs/<timestamp>/`:
+
+- `anomaly.log.gz` — full compressed snapshot log, one entry every 2 seconds
+- `summary.json` — machine-readable event summary including trigger, duration, peak temps, driver, CUDA, and kernel version
+
 ## GB10 / DGX Spark
 
 On coherent UMA platforms, `nvmlDeviceGetMemoryInfo` may report `total ≈ MemTotal` (~121 GB). This does not reflect allocatable memory.
 
-sparkview detects this condition at runtime and uses `MemAvailable` for display instead.
+sparkview detects this condition at runtime and uses `vm.total - vm.available` for used memory and `vm.total` as the display total — accurate under any workload including heavy inference loads.
 
 The PSI memory pressure signal (`/proc/pressure/memory`) provides visibility into memory contention before swap or system freeze.
-
 
 ## Clock States
 
