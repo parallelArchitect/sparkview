@@ -316,10 +316,14 @@ def main() -> None:
                         _last_log_path = str(path)
                 time.sleep(REFRESH)
     except KeyboardInterrupt:
+        pass
+    finally:
+        import os
+        os.system("stty sane")
         path = stop_log()
         if path:
-            console.print(f"\n[yellow]anomaly log saved to {path}[/yellow]")
-        console.print("\n[green]sparkview exited.[/green]")
+            print(f"\nAnomaly log saved to {path}")
+        print("\nsparkview exited.")
         sys.exit(0)
 
 
