@@ -262,7 +262,7 @@ def build(term_height: int = 40) -> Table:
             grid.add_row(t)
         sep(grid)
 
-    grid.add_row(Text("  [dim]Ctrl+C to quit  sparkview v0.1.0[/dim]"))
+    grid.add_row(Text("  [dim]Ctrl+C to quit  sparkview v0.2.0[/dim]"))
     return grid
 
 
