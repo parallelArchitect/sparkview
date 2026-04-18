@@ -1,22 +1,15 @@
-"""PSI memory pressure layer for sparkview."""
-
 from __future__ import annotations
 
 import pathlib
 
-PSI_PATH = pathlib.Path("/proc/pressure/memory")
+PSI_MEM_PATH = pathlib.Path("/proc/pressure/memory")
+PSI_IO_PATH = pathlib.Path("/proc/pressure/io")
 
 
-def get_pressure() -> dict:
-    """Read PSI memory pressure from /proc/pressure/memory."""
-    result = {
-        "available": False,
-        "some_avg10": 0.0,
-        "full_avg10": 0.0,
-        "level": "LOW",
-    }
+def _parse_psi(path: pathlib.Path) -> dict:
+    result = {"available": False, "some_avg10": 0.0, "full_avg10": 0.0, "level": "LOW"}
     try:
-        lines = PSI_PATH.read_text().strip().splitlines()
+        lines = path.read_text().strip().splitlines()
         for line in lines:
             parts = {
                 k: float(v)
@@ -42,3 +35,9 @@ def get_pressure() -> dict:
     except Exception:  # noqa: BLE001
         pass
     return result
+
+
+def get_pressure() -> dict:
+    mem = _parse_psi(PSI_MEM_PATH)
+    io = _parse_psi(PSI_IO_PATH)
+    return {"mem": mem, "io": io}

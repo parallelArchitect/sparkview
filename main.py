@@ -14,7 +14,7 @@ from rich.text import Text
 from sparkview.layers.cpu import get_cpu_info
 from sparkview.layers.gpu import get_gpu_info
 from sparkview.layers.info import get_info
-from sparkview.layers.logger import should_log, stop_log, write_log
+from sparkview.layers.logger import is_logging, should_log, stop_log, write_log
 from sparkview.layers.memory import get_memory
 from sparkview.layers.network import get_net_info
 from sparkview.layers.power import get_power_info
@@ -58,6 +58,7 @@ def sep(grid: Table) -> None:
 _last = {}
 _peak_gpu_temp = 0.0
 _peak_cpu_temp = 0.0
+_last_log_path = ""
 
 
 def build(term_height: int = 40) -> Table:
@@ -150,17 +151,31 @@ def build(term_height: int = 40) -> Table:
     sep(grid)
 
     # ── PSI ──────────────────────────────────────────
-    if psi["available"]:
-        level = psi["level"]
+    mem_psi = psi.get("mem", {})
+    io_psi = psi.get("io", {})
+    if mem_psi.get("available"):
+        level = mem_psi["level"]
         color = psi_color(level)
-        score = min(psi["some_avg10"] * 100 / 0.30, 100)
+        score = min(mem_psi["some_avg10"] * 100 / 0.30, 100)
         label = "UMA    " if is_uma else "PSI    "
         t = Text()
         t.append(label, style="bold magenta")
         t.append(f"{bar(score)} ", style=color)
         t.append(f"{level:8s}", style=color + " bold")
-        t.append(f"  some {psi['some_avg10']:.2f}  full {psi['full_avg10']:.2f}")
+        t.append(f"  some {mem_psi['some_avg10']:.2f}  full {mem_psi['full_avg10']:.2f}")
         grid.add_row(t)
+    sep(grid)
+    if io_psi.get("available"):
+        level = io_psi["level"]
+        color = psi_color(level)
+        score = min(io_psi["some_avg10"] * 100 / 0.30, 100)
+        t = Text()
+        t.append(" IO    ", style="bold cyan")
+        t.append(f"{bar(score)} ", style=color)
+        t.append(f"{level:8s}", style=color + " bold")
+        t.append(f"  some {io_psi['some_avg10']:.2f}  full {io_psi['full_avg10']:.2f}")
+        grid.add_row(t)
+    if mem_psi.get("available") or io_psi.get("available"):
         sep(grid)
 
     # ── TEMP ────────────────────────────────────────
@@ -262,7 +277,16 @@ def build(term_height: int = 40) -> Table:
             grid.add_row(t)
         sep(grid)
 
-    grid.add_row(Text("  [dim]Ctrl+C to quit  sparkview v0.2.0[/dim]"))
+    footer = Text()
+    if is_logging():
+        footer.append("  [dim]Ctrl+C to quit  sparkview v0.2.1[/dim]")
+        footer.append("  ● LOGGING", style="bold red")
+    elif _last_log_path:
+        footer.append("  [dim]Ctrl+C to quit  sparkview v0.2.1[/dim]")
+        footer.append(f"  ● log: {_last_log_path}", style="yellow")
+    else:
+        footer.append("  [dim]Ctrl+C to quit  sparkview v0.2.1[/dim]")
+    grid.add_row(footer)
     return grid
 
 
@@ -285,6 +309,11 @@ def main() -> None:
                         peak_gpu_temp=_peak_gpu_temp,
                         peak_cpu_temp=_peak_cpu_temp,
                     )
+                elif is_logging():
+                    path = stop_log()
+                    if path:
+                        global _last_log_path
+                        _last_log_path = str(path)
                 time.sleep(REFRESH)
     except KeyboardInterrupt:
         path = stop_log()

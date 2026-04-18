@@ -26,8 +26,12 @@ def _get_event_dir() -> str:
 
 
 def _detect_trigger(psi: dict, throttle: list, mem: dict, gpus: list, cpu: dict | None) -> str:
-    if psi.get("level") in ("MOD", "HIGH", "CRITICAL"):
-        return f"PSI_{psi.get('level')}"
+    mem_psi = psi.get("mem", psi)
+    io_psi = psi.get("io", {})
+    if mem_psi.get("level") in ("MOD", "HIGH", "CRITICAL"):
+        return f"PSI_{mem_psi.get('level')}"
+    if io_psi.get("level") in ("MOD", "HIGH", "CRITICAL"):
+        return f"IO_PSI_{io_psi.get('level')}"
     for th in throttle:
         if th.get("status") in ("THROTTLED", "LOCKED"):
             return f"CLOCK_{th.get('status')}"
@@ -42,7 +46,11 @@ def _detect_trigger(psi: dict, throttle: list, mem: dict, gpus: list, cpu: dict 
 
 
 def should_log(psi: dict, throttle: list, mem: dict, gpus: list, cpu: dict | None = None) -> bool:
-    if psi.get("level") in ("MOD", "HIGH", "CRITICAL"):
+    mem_psi = psi.get("mem", psi)
+    io_psi = psi.get("io", {})
+    if mem_psi.get("level") in ("MOD", "HIGH", "CRITICAL"):
+        return True
+    if io_psi.get("level") in ("MOD", "HIGH", "CRITICAL"):
         return True
     for th in throttle:
         if th.get("status") in ("THROTTLED", "LOCKED"):
@@ -134,10 +142,17 @@ def write_log(
         pstate = th.get("pstate", "?")
         _log_file.write(f"CLOCK: {status}  {clk:.0f}MHz / {clk_max:.0f}MHz  {pstate}\n")
 
-    level = psi.get("level", "?")
-    some = psi.get("some_avg10", 0)
-    full = psi.get("full_avg10", 0)
+    mem_psi = psi.get("mem", psi)
+    io_psi = psi.get("io", {})
+    level = mem_psi.get("level", "?")
+    some = mem_psi.get("some_avg10", 0)
+    full = mem_psi.get("full_avg10", 0)
     _log_file.write(f"PSI:   {level}  some {some:.2f}  full {full:.2f}\n")
+    if io_psi.get("available"):
+        io_level = io_psi.get("level", "?")
+        io_some = io_psi.get("some_avg10", 0)
+        io_full = io_psi.get("full_avg10", 0)
+        _log_file.write(f"IO:    {io_level}  some {io_some:.2f}  full {io_full:.2f}\n")
 
     procs = sorted(
         [p for g in gpus for p in g.get("processes", [])],
