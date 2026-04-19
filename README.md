@@ -24,6 +24,8 @@ Operator-grade GPU monitor for NVIDIA GPUs with GB10 / DGX Spark–aware unified
 
 ## Install
 
+### Using pip
+
 ```bash
 git clone https://github.com/parallelArchitect/sparkview.git
 cd sparkview
@@ -38,11 +40,28 @@ source ~/sparkview/sparkview-venv/bin/activate
 pip install nvitop psutil rich textual
 ```
 
+### Using uv
+
+```bash
+$ git clone https://github.com/parallelArchitect/sparkview.git
+$ cd sparkview
+
+# create a virtual environment (recommended on DGX Spark)
+$ uv venv
+
+# install
+$ uv pip install -e .
+```
+
 ## Run
+
+### Using python3
 
 ```bash
 python3 main.py
 ```
+
+#### Permanent alias
 
 Add a permanent alias for one-command launch from terminal:
 
@@ -52,6 +71,16 @@ source ~/.bashrc
 ```
 
 Then just type `sparkview` from terminal to launch.
+
+### Using uv
+
+```bash
+# activate the environment
+source .venv/bin/activate
+
+# run sparkview
+sparkview
+```
 
 ## Anomaly Logging
 
