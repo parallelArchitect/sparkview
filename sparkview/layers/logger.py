@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from sparkview.layers import power_rails
-
 import gzip
 import json
 import os
 import shutil
 from datetime import datetime
+
+from sparkview.layers import power_rails
 
 LOG_DIR = os.path.expanduser("~/sparkview_logs")
 _log_file = None
@@ -203,6 +203,7 @@ def stop_log() -> str | None:
     global _anomaly_start, _trigger_reason, _peak_temps, _snapshot_count
 
     if _logging_active and _log_file:
+        global _peak_gpu_w
         end_time = datetime.now()
         duration = (end_time - _anomaly_start).seconds if _anomaly_start else 0
 

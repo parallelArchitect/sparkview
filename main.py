@@ -11,8 +11,8 @@ from rich.live import Live
 from rich.table import Table
 from rich.text import Text
 
-from sparkview.layers.cpu import get_cpu_info
 from sparkview.layers import power_rails
+from sparkview.layers.cpu import get_cpu_info
 from sparkview.layers.gpu import get_gpu_info
 from sparkview.layers.info import get_info
 from sparkview.layers.logger import should_log, stop_log, write_log

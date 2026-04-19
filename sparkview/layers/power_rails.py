@@ -31,11 +31,10 @@ from __future__ import annotations
 
 import glob
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 from rich.text import Text
-
 
 # ── ACPI device path for status attributes ────────────────────────────────────
 _ACPI_DEVICE = "/sys/bus/platform/devices/NVDA8800:00"
