@@ -12,9 +12,10 @@ from rich.table import Table
 from rich.text import Text
 
 from sparkview.layers.cpu import get_cpu_info
+from sparkview.layers import power_rails
 from sparkview.layers.gpu import get_gpu_info
 from sparkview.layers.info import get_info
-from sparkview.layers.logger import is_logging, should_log, stop_log, write_log
+from sparkview.layers.logger import should_log, stop_log, write_log
 from sparkview.layers.memory import get_memory
 from sparkview.layers.network import get_net_info
 from sparkview.layers.power import get_power_info
@@ -58,7 +59,6 @@ def sep(grid: Table) -> None:
 _last = {}
 _peak_gpu_temp = 0.0
 _peak_cpu_temp = 0.0
-_last_log_path = ""
 
 
 def build(term_height: int = 40) -> Table:
@@ -89,12 +89,31 @@ def build(term_height: int = 40) -> Table:
         t.append(f"{util:3d}%")
         t.append(f"  {temp}  {pw}  Mem {gi(g['mem_used'])}/{gi(g['mem_total'])}")
         if g["is_uma"]:
-            uma_alert = (
-                psi.get("level") in ("HIGH", "CRITICAL")
+            mem_psi = psi.get("mem", psi)
+            io_psi = psi.get("io", {})
+            pwr = power_rails.read() if power_rails.is_available() else None
+            # red — critical: hardware brake, throttle, high pressure, high temp
+            uma_red = (
+                mem_psi.get("level") in ("HIGH", "CRITICAL")
+                or io_psi.get("level") in ("HIGH", "CRITICAL")
                 or any(th.get("status") == "THROTTLED" for th in throttle)
                 or any(g.get("temperature", 0) > 80 for g in gpus)
+                or (pwr and pwr.prochot)
             )
-            uma_style = "bold red" if uma_alert else "yellow bold"
+            # yellow — warning: approaching limits
+            uma_yellow = (
+                mem_psi.get("level") == "MOD"
+                or io_psi.get("level") == "MOD"
+                or any(th.get("status") == "LOCKED" for th in throttle)
+                or any(60 <= g.get("temperature", 0) <= 80 for g in gpus)
+                or (pwr and pwr.cap_exceeded)
+            )
+            if uma_red:
+                uma_style = "bold red"
+            elif uma_yellow:
+                uma_style = "yellow bold"
+            else:
+                uma_style = "green bold"
             t.append("  ⚡UMA", style=uma_style)
         grid.add_row(t)
     sep(grid)
@@ -229,13 +248,16 @@ def build(term_height: int = 40) -> Table:
         sep(grid)
 
     # ── POWER ────────────────────────────────────────
-    if power["available"]:
-        t = Text()
-        t.append("PWR    ", style="bold cyan")
-        t.append(f"{power['power_w']:.1f}W", style="green")
-        t.append(f"  {power['source']}", style="dim")
-        grid.add_row(t)
-        sep(grid)
+    # GB10: spark_hwmon rails (gpu, dc_input, syspl1, prochot, pl_level, tj_max_c)
+    # Discrete: NVML power draw fallback
+    if not power_rails.render(grid, sep):
+        if power["available"]:
+            t = Text()
+            t.append("PWR    ", style="bold cyan")
+            t.append(f"{power['power_w']:.1f}W", style="green")
+            t.append(f"  {power['source']}", style="dim")
+            grid.add_row(t)
+            sep(grid)
 
     # ── INFO ─────────────────────────────────────────────
     t = Text()
@@ -277,16 +299,7 @@ def build(term_height: int = 40) -> Table:
             grid.add_row(t)
         sep(grid)
 
-    footer = Text()
-    if is_logging():
-        footer.append("  [dim]Ctrl+C to quit  sparkview v0.2.1[/dim]")
-        footer.append("  ● LOGGING", style="bold red")
-    elif _last_log_path:
-        footer.append("  [dim]Ctrl+C to quit  sparkview v0.2.1[/dim]")
-        footer.append(f"  ● log: {_last_log_path}", style="yellow")
-    else:
-        footer.append("  [dim]Ctrl+C to quit  sparkview v0.2.1[/dim]")
-    grid.add_row(footer)
+    grid.add_row(Text("  [dim]Ctrl+C to quit  sparkview v0.2.2[/dim]"))
     return grid
 
 
@@ -309,21 +322,12 @@ def main() -> None:
                         peak_gpu_temp=_peak_gpu_temp,
                         peak_cpu_temp=_peak_cpu_temp,
                     )
-                elif is_logging():
-                    path = stop_log()
-                    if path:
-                        global _last_log_path
-                        _last_log_path = str(path)
                 time.sleep(REFRESH)
     except KeyboardInterrupt:
-        pass
-    finally:
-        import os
-        os.system("stty sane")
         path = stop_log()
         if path:
-            print(f"\nAnomaly log saved to {path}")
-        print("\nsparkview exited.")
+            console.print(f"\n[yellow]anomaly log saved to {path}[/yellow]")
+        console.print("\n[green]sparkview exited.[/green]")
         sys.exit(0)
 
 

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from sparkview.layers import power_rails
+
 import gzip
 import json
 import os
@@ -14,6 +16,7 @@ _logging_active = False
 _anomaly_start = None
 _trigger_reason = None
 _peak_temps: dict = {"gpu": 0.0, "cpu": 0.0}
+_peak_gpu_w: float = 0.0
 _snapshot_count = 0
 _last_info: dict = {}
 
@@ -26,6 +29,9 @@ def _get_event_dir() -> str:
 
 
 def _detect_trigger(psi: dict, throttle: list, mem: dict, gpus: list, cpu: dict | None) -> str:
+    pwr = power_rails.read()
+    if pwr and pwr.prochot:
+        return "PROCHOT"
     mem_psi = psi.get("mem", psi)
     io_psi = psi.get("io", {})
     if mem_psi.get("level") in ("MOD", "HIGH", "CRITICAL"):
@@ -46,6 +52,9 @@ def _detect_trigger(psi: dict, throttle: list, mem: dict, gpus: list, cpu: dict 
 
 
 def should_log(psi: dict, throttle: list, mem: dict, gpus: list, cpu: dict | None = None) -> bool:
+    pwr = power_rails.read()
+    if pwr and pwr.prochot:
+        return True
     mem_psi = psi.get("mem", psi)
     io_psi = psi.get("io", {})
     if mem_psi.get("level") in ("MOD", "HIGH", "CRITICAL"):
@@ -154,6 +163,22 @@ def write_log(
         io_full = io_psi.get("full_avg10", 0)
         _log_file.write(f"IO:    {io_level}  some {io_some:.2f}  full {io_full:.2f}\n")
 
+    pwr = power_rails.read()
+    if pwr is not None:
+        global _peak_gpu_w
+        if pwr.gpu_w is not None and pwr.gpu_w > _peak_gpu_w:
+            _peak_gpu_w = pwr.gpu_w
+        prochot_str = "ACTIVE" if pwr.prochot else "ok"
+        dc_str = f"DC {pwr.dc_w:.1f}W" if pwr.dc_w is not None else ""
+        cap_str = f"Cap {pwr.syspl1_cap_w:.0f}W" if pwr.syspl1_cap_w is not None else ""
+        act_str = f"act {pwr.syspl1_act_w:.0f}W" if pwr.syspl1_act_w is not None else ""
+        tj_str = f"Tj+{pwr.tj_rise_c}°C" if pwr.tj_rise_c is not None else ""
+        gpu_w_str = f"{pwr.gpu_w:.0f}W" if pwr.gpu_w is not None else "?"
+        _log_file.write(
+            f"PWR:   GPU {gpu_w_str}  {dc_str}  {cap_str}  {act_str}  "
+            f"PROCHOT {prochot_str}  PL{pwr.pl_level}  {tj_str}\n"
+        )
+
     procs = sorted(
         [p for g in gpus for p in g.get("processes", [])],
         key=lambda x: x["gpu_mem"] or 0,
@@ -193,6 +218,7 @@ def stop_log() -> str | None:
             "snapshots": _snapshot_count,
             "peak_gpu_temp_c": round(_peak_temps["gpu"], 1),
             "peak_cpu_temp_c": round(_peak_temps["cpu"], 1),
+            "peak_gpu_w": round(_peak_gpu_w, 1),
             "driver": _last_info.get("driver", "?"),
             "cuda": _last_info.get("cuda", "?"),
             "kernel": _last_info.get("kernel", "?"),
@@ -211,6 +237,7 @@ def stop_log() -> str | None:
         _trigger_reason = None
         _snapshot_count = 0
         _peak_temps = {"gpu": 0.0, "cpu": 0.0}
+        _peak_gpu_w = 0.0
         return _log_dir
 
     return None

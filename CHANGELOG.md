@@ -1,23 +1,26 @@
-# Changelog
-
-## v0.2.1 — 2026-04-18
+## v0.2.2 — 2026-04-19
 
 ### Added
-- IO PSI row — `/proc/pressure/io` — detects data pipeline starvation before GPU utilization drops
-- IO PSI anomaly trigger — logs automatically when IO PSI reaches MOD, HIGH, or CRITICAL
-- IO_PSI trigger recorded in `summary.json` — distinguishes IO bottleneck from memory pressure
-- Visual separation between PSI and IO rows
+- PWR row — GB10 power rail monitor via spark_hwmon (antheas/spark_hwmon)
+  - GPU instantaneous draw, session peak, DC input, SysPL1 cap
+  - PROCHOT status, active PL level, Tj thermal rise
+  - Hidden on non-GB10 systems — shown only when spbm hwmon device present
+- PROCHOT triggers anomaly logger — captured in anomaly.log.gz and summary.json
+- PROCHOT turns ⚡UMA indicator red — visible at a glance
+- peak_gpu_w added to summary.json
 
-### Why IO PSI matters
-- PSI LOW + IO CRITICAL = pure IO bottleneck (dataloader, checkpoint, network FS)
-- PSI HIGH + IO CRITICAL = system contention (memory reclaim + disk fighting)
-- Without IO PSI you see GPU idle. With IO PSI you know why.
+### Why PWR matters
+- DC input < SysPL1 cap = power brick not delivering enough = PD throttle
+- PROCHOT ACTIVE = hardware brake fired = clock drop to 611MHz
+- These two signals explain why CLOCK shows THROTTLED
+
+# Changelog
 
 ## v0.2.0 — 2026-04-18
 
 ### Added
 - TEMP row — current and session peak for GPU and CPU, color-coded green (<60°C) / yellow (60–80°C) / red (>80°C)
-- INFO row — live time, driver version, CUDA version, kernel, uptime
+- INFO row — live time (12hr), driver version, CUDA version, kernel, uptime
 - Anomaly auto-logger — starts automatically when issues are detected, stops and compresses on clear
   - Logs saved to `~/sparkview_logs/<timestamp>/anomaly.log.gz`
   - Machine-readable `summary.json` per event — trigger, duration, peak temps, driver, CUDA, kernel
