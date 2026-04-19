@@ -15,6 +15,7 @@ Operator-grade GPU monitor for NVIDIA GPUs with GB10 / DGX Spark–aware unified
 - TEMP row — current and session peak for GPU and CPU, color-coded green/yellow/red
 - INFO row — time, driver version, CUDA version, kernel, uptime
 - Process list sorted by GPU memory usage, scales to terminal height
+- PWR row — GB10 power rail monitor via spark_hwmon (gpu, dc_input, syspl1, PROCHOT, PL level, Tj-rise) — hidden on non-GB10 systems
 - Anomaly auto-logger — automatically logs to `~/sparkview_logs/` when issues are detected
 - Clean exit on Ctrl+C
 
@@ -62,11 +63,12 @@ sparkview automatically starts logging when any of these conditions are detected
 - GPU clock drops to THROTTLED or LOCKED under load
 - Memory > 85% with swap active
 - GPU or CPU temperature exceeds 80°C
+- PROCHOT hardware throttle active (GB10 with spark_hwmon)
 
 Logs are saved to `~/sparkview_logs/<timestamp>/`:
 
 - `anomaly.log.gz` — full compressed snapshot log, one entry every 2 seconds
-- `summary.json` — machine-readable event summary including trigger, duration, peak temps, driver, CUDA, and kernel version
+- `summary.json` — machine-readable event summary including trigger, duration, peak temps, driver, CUDA, kernel version, and peak GPU power draw
 
 ## IO PSI — Pipeline Starvation Detection
 
@@ -102,6 +104,31 @@ Current implementation uses a fixed threshold:
 This threshold is derived from field observations on GB10 systems using the `spark-gpu-throttle-check` tool, where healthy operation reaches ~2400 MHz and degraded systems operate in the ~500–850 MHz range.
 
 Detection is load-gated — evaluation only occurs when GPU utilization confirms active workload.
+
+
+## GB10 Power Rails (spark_hwmon)
+
+v0.2.2 adds a PWR row for GB10 systems using the spark_hwmon kernel module (https://github.com/antheas/spark_hwmon).
+
+Install:
+
+    git clone https://github.com/antheas/spark_hwmon.git
+    cd spark_hwmon
+    sudo dkms add .
+    sudo dkms build spbm/0.3.0
+    sudo dkms install spbm/0.3.0
+
+sparkview detects the spbm hwmon device automatically on next run. Hidden on non-GB10 systems. PROCHOT feeds the anomaly logger and turns the UMA indicator red.
+
+## PSI Baseline Collector
+
+IO PSI thresholds were tuned on discrete GPU systems. GB10 unified memory management generates IO PSI at idle with no disk activity — confirmed from field data. Collector tool included:
+
+    python3 tools/collect_psi_baseline.py --duration 120 --label idle
+    python3 tools/collect_psi_baseline.py --duration 120 --label vllm_loaded
+    python3 tools/collect_psi_baseline.py --duration 120 --label inference_running
+
+Saves JSON + log to ~/sparkview_logs/psi_baseline/ with min, max, mean, p90, p99 per PSI channel.
 
 ## Related Tools
 
