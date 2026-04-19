@@ -9,8 +9,12 @@ dependencies = [
     "rich",
 ]
 
-[project.authors]
-name = "parallelArchitect"
+authors = [
+    { name = "parallelArchitect" },
+]
+
+[project.scripts]
+sparkview = "sparkview.main:main"
 
 [tool.ruff]
 line-length = 100
