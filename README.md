@@ -58,7 +58,7 @@ $ uv pip install -e .
 ### Using python3
 
 ```bash
-python3 main.py
+python3 sparkview/main.py
 ```
 
 #### Permanent alias
@@ -66,7 +66,7 @@ python3 main.py
 Add a permanent alias for one-command launch from terminal:
 
 ```bash
-echo "alias sparkview='source ~/sparkview/sparkview-venv/bin/activate && python3 ~/sparkview/main.py'" >> ~/.bashrc
+echo "alias sparkview='source ~/sparkview/sparkview-venv/bin/activate && python3 ~/sparkview/sparkview/main.py'" >> ~/.bashrc
 source ~/.bashrc
 ```
 
