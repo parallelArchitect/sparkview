@@ -1,12 +1,13 @@
 [project]
 name = "sparkview"
-version = "0.2.0"
+version = "0.2.2"
 description = "GB10 Grace Blackwell unified memory GPU monitor"
 requires-python = ">=3.10"
 dependencies = [
     "nvitop",
     "psutil",
     "rich",
+    "textual",
 ]
 
 authors = [
