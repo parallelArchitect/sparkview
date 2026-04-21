@@ -15,7 +15,7 @@ from sparkview.layers import power_rails
 from sparkview.layers.cpu import get_cpu_info
 from sparkview.layers.gpu import get_gpu_info
 from sparkview.layers.info import get_info
-from sparkview.layers.logger import should_log, stop_log, write_log
+from sparkview.layers.logger import should_log, stop_log, write_log, is_logging
 from sparkview.layers.memory import get_memory
 from sparkview.layers.network import get_net_info
 from sparkview.layers.power import get_power_info
@@ -301,7 +301,13 @@ def build(term_height: int = 40) -> Table:
             grid.add_row(t)
         sep(grid)
 
-    grid.add_row(Text("  [dim]Ctrl+C to quit  sparkview v0.2.2[/dim]"))
+    footer = Text()
+    if is_logging():
+        footer.append("  [dim]Ctrl+C to quit  sparkview v0.2.2[/dim]")
+        footer.append("  ● LOGGING", style="bold red")
+    else:
+        footer.append("  [dim]Ctrl+C to quit  sparkview v0.2.2[/dim]")
+    grid.add_row(footer)
     return grid
 
 
