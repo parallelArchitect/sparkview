@@ -265,6 +265,8 @@ def build(term_height: int = 40) -> Table:
     parts = []
     if info["time"]:
         parts.append(info["time"])
+    if info["gpu_name"]:
+        parts.append(info["gpu_name"])
     if info["driver"]:
         parts.append(f"Driver {info['driver']}")
     if info["cuda"]:

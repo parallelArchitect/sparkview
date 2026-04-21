@@ -18,6 +18,7 @@ def get_info() -> dict:
         "kernel": platform.release(),
         "driver": "",
         "cuda": "",
+        "gpu_name": "",
     }
 
     try:
@@ -36,6 +37,7 @@ def get_info() -> dict:
             if devices:
                 info["driver"] = devices[0].driver_version()
                 info["cuda"] = devices[0].cuda_driver_version()
+                info["gpu_name"] = devices[0].name()
         except Exception:  # noqa: BLE001
             pass
 
