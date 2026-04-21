@@ -15,7 +15,7 @@ from sparkview.layers import power_rails
 from sparkview.layers.cpu import get_cpu_info
 from sparkview.layers.gpu import get_gpu_info
 from sparkview.layers.info import get_info
-from sparkview.layers.logger import should_log, stop_log, write_log, is_logging
+from sparkview.layers.logger import is_logging, should_log, stop_log, write_log
 from sparkview.layers.memory import get_memory
 from sparkview.layers.network import get_net_info
 from sparkview.layers.power import get_power_info

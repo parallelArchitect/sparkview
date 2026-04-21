@@ -18,18 +18,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import pathlib
 import platform
 import subprocess
 import time
 from datetime import datetime
 
-
 # ── PSI paths ────────────────────────────────────────────────────────────────
-PSI_MEM  = pathlib.Path("/proc/pressure/memory")
-PSI_IO   = pathlib.Path("/proc/pressure/io")
-LOG_DIR  = pathlib.Path.home() / "sparkview_logs" / "psi_baseline"
+PSI_MEM = pathlib.Path("/proc/pressure/memory")
+PSI_IO = pathlib.Path("/proc/pressure/io")
+LOG_DIR = pathlib.Path.home() / "sparkview_logs" / "psi_baseline"
 
 
 def _parse_psi(path: pathlib.Path) -> dict:
@@ -38,7 +36,7 @@ def _parse_psi(path: pathlib.Path) -> dict:
         result = {}
         for line in lines:
             parts = line.split()
-            kind = parts[0]   # "some" or "full"
+            kind = parts[0]  # "some" or "full"
             kv = {p.split("=")[0]: float(p.split("=")[1]) for p in parts[1:]}
             result[kind] = kv
         return result
@@ -48,22 +46,26 @@ def _parse_psi(path: pathlib.Path) -> dict:
 
 def _system_info() -> dict:
     info = {
-        "hostname":  platform.node(),
-        "kernel":    platform.release(),
+        "hostname": platform.node(),
+        "kernel": platform.release(),
         "collected": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
     try:
-        out = subprocess.check_output(
-            ["nvidia-smi", "--query-gpu=driver_version,name",
-             "--format=csv,noheader"],
-            text=True, timeout=5
-        ).strip().splitlines()[0]
+        out = (
+            subprocess.check_output(
+                ["nvidia-smi", "--query-gpu=driver_version,name", "--format=csv,noheader"],
+                text=True,
+                timeout=5,
+            )
+            .strip()
+            .splitlines()[0]
+        )
         driver, gpu = [x.strip() for x in out.split(",")]
         info["driver"] = driver
-        info["gpu"]    = gpu
+        info["gpu"] = gpu
     except Exception:
         info["driver"] = "unknown"
-        info["gpu"]    = "unknown"
+        info["gpu"] = "unknown"
     try:
         mem = pathlib.Path("/proc/meminfo").read_text()
         for line in mem.splitlines():
@@ -80,18 +82,18 @@ def _stats(vals: list) -> dict:
     if not vals:
         return {}
     return {
-        "min":  round(min(vals), 4),
-        "max":  round(max(vals), 4),
+        "min": round(min(vals), 4),
+        "max": round(max(vals), 4),
         "mean": round(sum(vals) / len(vals), 4),
-        "p90":  round(sorted(vals)[int(len(vals) * 0.90)], 4),
-        "p99":  round(sorted(vals)[int(len(vals) * 0.99)], 4),
+        "p90": round(sorted(vals)[int(len(vals) * 0.90)], 4),
+        "p99": round(sorted(vals)[int(len(vals) * 0.99)], 4),
     }
 
 
 def collect(duration: int, label: str, interval: float = 1.0) -> str:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-    print(f"sparkview PSI baseline collector")
+    print("sparkview PSI baseline collector")
     print(f"  label:    {label}")
     print(f"  duration: {duration}s")
     print(f"  output:   {LOG_DIR}")
@@ -105,25 +107,25 @@ def collect(duration: int, label: str, interval: float = 1.0) -> str:
         print("ERROR: /proc/pressure/io not found — IO PSI not supported on this kernel")
         return ""
 
-    samples  = []
+    samples = []
     log_lines = []
     start = time.monotonic()
     n = 0
 
     try:
         while time.monotonic() - start < duration:
-            ts  = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             mem = _parse_psi(PSI_MEM)
-            io  = _parse_psi(PSI_IO)
-            t   = round(time.monotonic() - start, 1)
+            io = _parse_psi(PSI_IO)
+            t = round(time.monotonic() - start, 1)
 
             sample = {"t": t, "ts": ts, "mem": mem, "io": io}
             samples.append(sample)
 
             mem_some = mem.get("some", {}).get("avg10", 0.0)
             mem_full = mem.get("full", {}).get("avg10", 0.0)
-            io_some  = io.get("some",  {}).get("avg10", 0.0)
-            io_full  = io.get("full",  {}).get("avg10", 0.0)
+            io_some = io.get("some", {}).get("avg10", 0.0)
+            io_full = io.get("full", {}).get("avg10", 0.0)
 
             line = (
                 f"{ts}  t={t:6.1f}s  "
@@ -144,31 +146,31 @@ def collect(duration: int, label: str, interval: float = 1.0) -> str:
     # ── Stats ─────────────────────────────────────────────────────────────────
     mem_some_vals = [s["mem"].get("some", {}).get("avg10", 0) for s in samples]
     mem_full_vals = [s["mem"].get("full", {}).get("avg10", 0) for s in samples]
-    io_some_vals  = [s["io"].get("some",  {}).get("avg10", 0) for s in samples]
-    io_full_vals  = [s["io"].get("full",  {}).get("avg10", 0) for s in samples]
+    io_some_vals = [s["io"].get("some", {}).get("avg10", 0) for s in samples]
+    io_full_vals = [s["io"].get("full", {}).get("avg10", 0) for s in samples]
 
     summary = {
         "mem_some": _stats(mem_some_vals),
         "mem_full": _stats(mem_full_vals),
-        "io_some":  _stats(io_some_vals),
-        "io_full":  _stats(io_full_vals),
+        "io_some": _stats(io_some_vals),
+        "io_full": _stats(io_full_vals),
     }
 
     # ── Write JSON ────────────────────────────────────────────────────────────
-    ts_file  = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts_file = datetime.now().strftime("%Y%m%d_%H%M%S")
     basename = f"sparkview_psi_baseline_{label}_{ts_file}"
     json_path = LOG_DIR / f"{basename}.json"
-    log_path  = LOG_DIR / f"{basename}.log"
+    log_path = LOG_DIR / f"{basename}.log"
 
     output = {
-        "tool":    "sparkview_psi_baseline_collector",
+        "tool": "sparkview_psi_baseline_collector",
         "version": "1.0.0",
-        "label":   label,
+        "label": label,
         "duration": duration,
-        "samples":  n,
-        "system":  _system_info(),
+        "samples": n,
+        "system": _system_info(),
         "summary": summary,
-        "data":    samples,
+        "data": samples,
     }
 
     with open(json_path, "w") as f:
@@ -176,32 +178,38 @@ def collect(duration: int, label: str, interval: float = 1.0) -> str:
 
     # ── Write human-readable log ──────────────────────────────────────────────
     with open(log_path, "w") as f:
-        f.write(f"sparkview PSI baseline log\n")
+        f.write("sparkview PSI baseline log\n")
         f.write(f"label:    {label}\n")
         f.write(f"duration: {duration}s\n")
         f.write(f"samples:  {n}\n")
         f.write(f"system:   {platform.node()} / {platform.release()}\n")
-        f.write(f"\n")
-        f.write(f"{'timestamp':<22}  {'t':>7}  "
-                f"{'mem_some':>10}  {'mem_full':>10}  "
-                f"{'io_some':>10}  {'io_full':>10}\n")
+        f.write("\n")
+        f.write(
+            f"{'timestamp':<22}  {'t':>7}  "
+            f"{'mem_some':>10}  {'mem_full':>10}  "
+            f"{'io_some':>10}  {'io_full':>10}\n"
+        )
         f.write("-" * 80 + "\n")
         for line in log_lines:
             f.write(line + "\n")
         f.write("\n")
         f.write("Summary:\n")
         for key, st in summary.items():
-            f.write(f"  {key:<12}  min={st.get('min','?')}  max={st.get('max','?')}  "
-                    f"mean={st.get('mean','?')}  p90={st.get('p90','?')}  "
-                    f"p99={st.get('p99','?')}\n")
+            f.write(
+                f"  {key:<12}  min={st.get('min', '?')}  max={st.get('max', '?')}  "
+                f"mean={st.get('mean', '?')}  p90={st.get('p90', '?')}  "
+                f"p99={st.get('p99', '?')}\n"
+            )
 
     print(f"\n  json: {json_path}")
     print(f"  log:  {log_path}")
     print()
     print("  Summary:")
     for key, st in summary.items():
-        print(f"    {key:<12}  min={st.get('min','?')}  max={st.get('max','?')}  "
-              f"mean={st.get('mean','?')}  p90={st.get('p90','?')}")
+        print(
+            f"    {key:<12}  min={st.get('min', '?')}  max={st.get('max', '?')}  "
+            f"mean={st.get('mean', '?')}  p90={st.get('p90', '?')}"
+        )
 
     return str(json_path)
 
@@ -211,17 +219,17 @@ if __name__ == "__main__":
         description="sparkview PSI baseline collector — GB10 calibration"
     )
     parser.add_argument(
-        "--duration", type=int, default=120,
-        help="Collection duration in seconds (default: 120)"
+        "--duration", type=int, default=120, help="Collection duration in seconds (default: 120)"
     )
     parser.add_argument(
-        "--label", type=str, default="idle",
+        "--label",
+        type=str,
+        default="idle",
         choices=["idle", "vllm_loaded", "inference_running", "post_inference", "custom"],
-        help="Workload label for this collection run"
+        help="Workload label for this collection run",
     )
     parser.add_argument(
-        "--interval", type=float, default=1.0,
-        help="Sample interval in seconds (default: 1.0)"
+        "--interval", type=float, default=1.0, help="Sample interval in seconds (default: 1.0)"
     )
     args = parser.parse_args()
     collect(args.duration, args.label, args.interval)
