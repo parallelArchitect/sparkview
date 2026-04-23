@@ -8,7 +8,6 @@ Operator-grade GPU monitor for NVIDIA GPUs with GB10 / DGX Spark–aware unified
 - Runtime detection of coherent UMA (GB10 / DGX Spark)
 - Memory display uses `vm.total - vm.available` for accurate UMA reporting
 - Memory pressure (PSI) — LOW / MOD / HIGH / CRITICAL from `/proc/pressure/memory`
-- IO pressure (IO PSI) — LOW / MOD / HIGH / CRITICAL from `/proc/pressure/io`
 - Load-gated clock states — IDLE / PASS / LOCKED / THROTTLED
 - CPU utilization and active core count
 - SWAP monitoring
@@ -59,7 +58,6 @@ Then just type `sparkview` from terminal to launch.
 sparkview automatically starts logging when any of these conditions are detected:
 
 - PSI memory pressure reaches MOD, HIGH, or CRITICAL
-- IO pressure reaches MOD, HIGH, or CRITICAL
 - GPU clock drops to THROTTLED or LOCKED under load
 - Memory > 85% with swap active
 - GPU or CPU temperature exceeds 80°C
@@ -69,16 +67,6 @@ Logs are saved to `~/sparkview_logs/<timestamp>/`:
 
 - `anomaly.log.gz` — full compressed snapshot log, one entry every 2 seconds
 - `summary.json` — machine-readable event summary including trigger, duration, peak temps, driver, CUDA, kernel version, and peak GPU power draw
-
-## IO PSI — Pipeline Starvation Detection
-
-IO PSI (`/proc/pressure/io`) measures how much time tasks spend waiting on disk I/O. For ML training workloads this surfaces dataloader bottlenecks before GPU utilization drops.
-
-| PSI | IO PSI | Diagnosis |
-|-----|--------|-----------|
-| LOW | CRITICAL | Pure IO bottleneck — dataloader, checkpoint write, network FS |
-| HIGH | CRITICAL | System contention — memory reclaim and disk competing |
-| LOW | LOW | Healthy |
 
 ## GB10 / DGX Spark
 
@@ -124,7 +112,6 @@ sparkview detects the spbm hwmon device automatically on next run. Hidden on non
 
 ## PSI Baseline Collector
 
-IO PSI thresholds were tuned on discrete GPU systems. GB10 unified memory management generates IO PSI at idle with no disk activity — confirmed from field data. Collector tool included:
 
     python3 tools/collect_psi_baseline.py --duration 120 --label idle
     python3 tools/collect_psi_baseline.py --duration 120 --label vllm_loaded
