@@ -1,3 +1,9 @@
+## v0.2.3 — 2026-04-23
+
+### Fixed
+- Removed IO PSI row — false CRITICAL on GB10 with VLLM idle
+- IO PSI references removed from anomaly logger and pressure detection
+
 ## v0.2.2 — 2026-04-19
 
 ### Added

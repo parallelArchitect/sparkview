@@ -90,12 +90,10 @@ def build(term_height: int = 40) -> Table:
         t.append(f"  {temp}  {pw}  Mem {gi(g['mem_used'])}/{gi(g['mem_total'])}")
         if g["is_uma"]:
             mem_psi = psi.get("mem", psi)
-            io_psi = psi.get("io", {})
             pwr = power_rails.read() if power_rails.is_available() else None
             # red — critical: hardware brake, throttle, high pressure, high temp
             uma_red = (
                 mem_psi.get("level") in ("HIGH", "CRITICAL")
-                or io_psi.get("level") in ("HIGH", "CRITICAL")
                 or any(th.get("status") == "THROTTLED" for th in throttle)
                 or any(g.get("temperature", 0) > 80 for g in gpus)
                 or (pwr and pwr.prochot)
@@ -103,7 +101,6 @@ def build(term_height: int = 40) -> Table:
             # yellow — warning: approaching limits
             uma_yellow = (
                 mem_psi.get("level") == "MOD"
-                or io_psi.get("level") == "MOD"
                 or any(th.get("status") == "LOCKED" for th in throttle)
                 or any(60 <= g.get("temperature", 0) <= 80 for g in gpus)
                 or (pwr and pwr.cap_exceeded)
@@ -171,7 +168,6 @@ def build(term_height: int = 40) -> Table:
 
     # ── PSI ──────────────────────────────────────────
     mem_psi = psi.get("mem", {})
-    io_psi = psi.get("io", {})
     if mem_psi.get("available"):
         level = mem_psi["level"]
         color = psi_color(level)
@@ -183,18 +179,7 @@ def build(term_height: int = 40) -> Table:
         t.append(f"{level:8s}", style=color + " bold")
         t.append(f"  some {mem_psi['some_avg10']:.2f}  full {mem_psi['full_avg10']:.2f}")
         grid.add_row(t)
-    sep(grid)
-    if io_psi.get("available"):
-        level = io_psi["level"]
-        color = psi_color(level)
-        score = min(io_psi["some_avg10"] * 100 / 0.30, 100)
-        t = Text()
-        t.append(" IO    ", style="bold cyan")
-        t.append(f"{bar(score)} ", style=color)
-        t.append(f"{level:8s}", style=color + " bold")
-        t.append(f"  some {io_psi['some_avg10']:.2f}  full {io_psi['full_avg10']:.2f}")
-        grid.add_row(t)
-    if mem_psi.get("available") or io_psi.get("available"):
+    if mem_psi.get("available"):
         sep(grid)
 
     # ── TEMP ────────────────────────────────────────
@@ -303,10 +288,10 @@ def build(term_height: int = 40) -> Table:
 
     footer = Text()
     if is_logging():
-        footer.append("  [dim]Ctrl+C to quit  sparkview v0.2.2[/dim]")
+        footer.append("  [dim]Ctrl+C to quit  sparkview v0.2.3[/dim]")
         footer.append("  ● LOGGING", style="bold red")
     else:
-        footer.append("  [dim]Ctrl+C to quit  sparkview v0.2.2[/dim]")
+        footer.append("  [dim]Ctrl+C to quit  sparkview v0.2.3[/dim]")
     grid.add_row(footer)
     return grid
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 import pathlib
 
 PSI_MEM_PATH = pathlib.Path("/proc/pressure/memory")
-PSI_IO_PATH = pathlib.Path("/proc/pressure/io")
 
 
 def _parse_psi(path: pathlib.Path) -> dict:
@@ -39,5 +38,4 @@ def _parse_psi(path: pathlib.Path) -> dict:
 
 def get_pressure() -> dict:
     mem = _parse_psi(PSI_MEM_PATH)
-    io = _parse_psi(PSI_IO_PATH)
-    return {"mem": mem, "io": io}
+    return {"mem": mem}

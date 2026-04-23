@@ -108,6 +108,8 @@ Detection is load-gated — evaluation only occurs when GPU utilization confirms
 
 ## GB10 Power Rails (spark_hwmon)
 
+v0.2.3 removes the IO PSI row (false CRITICAL on GB10 with VLLM idle).
+
 v0.2.2 adds a PWR row for GB10 systems using the spark_hwmon kernel module (https://github.com/antheas/spark_hwmon).
 
 Install:
