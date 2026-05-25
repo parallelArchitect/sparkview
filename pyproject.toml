@@ -9,8 +9,7 @@ dependencies = [
     "rich",
 ]
 
-[project.authors]
-name = "parallelArchitect"
+authors = [{name = "parallelArchitect"}]
 
 [tool.ruff]
 line-length = 100
